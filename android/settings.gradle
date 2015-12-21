@@ -1,0 +1,9 @@
+rootProject.name = 'Image2DExperiments'
+
+include ':app'
+
+include ':io.reactionframework.android.react.image.image2d'
+project(':io.reactionframework.android.react.image.image2d').projectDir = new File(settingsDir, '../node_modules/react-native-image2d/android')
+
+include ':io.reactionframework.android.image'
+project(':io.reactionframework.android.image').projectDir = new File(settingsDir, '../node_modules/rction-image-android')

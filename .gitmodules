@@ -1,0 +1,6 @@
+[submodule "node_modules/react-native-image2d"]
+	path = node_modules/react-native-image2d
+	url = https://github.com/Reaction-Framework/react-native-image2d.git
+[submodule "node_modules/rction-image-android"]
+	path = node_modules/rction-image-android
+	url = https://github.com/Reaction-Framework/rction-image-android.git
