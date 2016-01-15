@@ -3,6 +3,7 @@ package com.image2dexperiments;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
+import io.reactionframework.android.react.image.image2d.Image2DPackage;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +34,9 @@ public class MainActivity extends ReactActivity {
    */
     @Override
     protected List<ReactPackage> getPackages() {
-      return Arrays.<ReactPackage>asList(
-        new MainReactPackage());
+      return Arrays.asList(
+              new MainReactPackage(),
+              new Image2DPackage()
+      );
     }
 }
