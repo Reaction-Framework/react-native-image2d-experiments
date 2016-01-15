@@ -105,7 +105,7 @@ export default React.createClass({
                 top: 100,
                 right: 100,
                 bottom: 100,
-                color: '#e1ff3d'
+                color: 'blue'
             });
 
             state.base64String = await image2DContext.getAsBase64String();
