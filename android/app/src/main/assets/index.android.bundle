@@ -1311,6 +1311,7 @@ get MapView(){return require('MapView');},
 get Modal(){return require('Modal');},
 get Navigator(){return require('Navigator');},
 get NavigatorIOS(){return require('NavigatorIOS');},
+get Picker(){return require('Picker');},
 get PickerIOS(){return require('PickerIOS');},
 get ProgressBarAndroid(){return require('ProgressBarAndroid');},
 get ProgressViewIOS(){return require('ProgressViewIOS');},
@@ -1345,6 +1346,7 @@ get Alert(){return require('Alert');},
 get AlertIOS(){return require('AlertIOS');},
 get Animated(){return require('Animated');},
 get AppRegistry(){return require('AppRegistry');},
+get AppState(){return require('AppState');},
 get AppStateIOS(){return require('AppStateIOS');},
 get AsyncStorage(){return require('AsyncStorage');},
 get BackAndroid(){return require('BackAndroid');},
@@ -1819,15 +1821,11 @@ return JSTimers.requestAnimationFrame(cb);};}
 
 
 function setUpAlert(){
-var RCTAlertManager=require('NativeModules').AlertManager;
 if(!GLOBAL.alert){
 GLOBAL.alert=function(text){
-var alertOpts={
-title:'Alert',
-message:''+text,
-buttons:[{'cancel':'OK'}]};
 
-RCTAlertManager.alertWithArgs(alertOpts,function(){});};}}
+
+require('Alert').alert('Alert',''+text);};}}
 
 
 
@@ -2788,6 +2786,26 @@ __d('Promise',function(global, require, module, exports) {  'use strict';
 global.setImmediate=require('setImmediate');
 var Promise=require('promise/setimmediate/es6-extensions.js');
 require('promise/setimmediate/done.js');
+if(__DEV__){
+require('promise/setimmediate/rejection-tracking.js').enable({
+allRejections:true,
+onUnhandled:function(id,error){var 
+message=error.message;var stack=error.stack;
+var warning=
+'Possible Unhandled Promise Rejection (id: '+id+'):\n'+(
+message==null?'':message+'\n')+(
+stack==null?'':stack);
+console.warn(warning);},
+
+onHandled:function(id){
+var warning=
+'Promise Rejection Handled (id: '+id+')\n'+
+'This means you can ignore any previous messages of the form '+('"Possible Unhandled Promise Rejection (id: '+
+id+'):"');
+console.warn(warning);}});}
+
+
+
 
 
 
@@ -3352,6 +3370,118 @@ setTimeout(function(){
 throw err;},
 0);});};
 });
+__d('promise/setimmediate/rejection-tracking.js',function(global, require, module, exports) {  'use strict';
+
+var Promise=require('promise/setimmediate/core.js');
+
+var DEFAULT_WHITELIST=[
+ReferenceError,
+TypeError,
+RangeError];
+
+
+var enabled=false;
+exports.disable=disable;
+function disable(){
+enabled=false;
+Promise._10=null;
+Promise._97=null;}
+
+
+exports.enable=enable;
+function enable(options){
+options=options||{};
+if(enabled)disable();
+enabled=true;
+var id=0;
+var displayId=0;
+var rejections={};
+Promise._10=function(promise){
+if(
+promise._81===2&&
+rejections[promise._72])
+{
+if(rejections[promise._72].logged){
+onHandled(promise._72);}else 
+{
+clearTimeout(rejections[promise._72].timeout);}
+
+delete rejections[promise._72];}};
+
+
+Promise._97=function(promise,err){
+if(promise._45===0){
+promise._72=id++;
+rejections[promise._72]={
+displayId:null,
+error:err,
+timeout:setTimeout(
+onUnhandled.bind(null,promise._72),
+
+
+
+
+matchWhitelist(err,DEFAULT_WHITELIST)?
+100:
+2000),
+
+logged:false};}};
+
+
+
+function onUnhandled(id){
+if(
+options.allRejections||
+matchWhitelist(
+rejections[id].error,
+options.whitelist||DEFAULT_WHITELIST))
+
+{
+rejections[id].displayId=displayId++;
+if(options.onUnhandled){
+rejections[id].logged=true;
+options.onUnhandled(
+rejections[id].displayId,
+rejections[id].error);}else 
+
+{
+rejections[id].logged=true;
+logError(
+rejections[id].displayId,
+rejections[id].error);}}}
+
+
+
+
+function onHandled(id){
+if(rejections[id].logged){
+if(options.onHandled){
+options.onHandled(rejections[id].displayId,rejections[id].error);}else 
+if(!rejections[id].onUnhandled){
+console.warn(
+'Promise Rejection Handled (id: '+rejections[id].displayId+'):');
+
+console.warn(
+'  This means you can ignore any previous messages of the form "Possible Unhandled Promise Rejection" with id '+
+rejections[id].displayId+'.');}}}}
+
+
+
+
+
+
+function logError(id,error){
+console.warn('Possible Unhandled Promise Rejection (id: '+id+'):');
+var errStr=(error&&(error.stack||error))+'';
+errStr.split('\n').forEach(function(line){
+console.warn('  '+line);});}
+
+
+
+function matchWhitelist(error,list){
+return list.some(function(cls){
+return error instanceof cls;});}
+});
 __d('NativeModules',function(global, require, module, exports) {  'use strict';
 
 
@@ -3421,12 +3551,16 @@ return module;}});});
 var UIManager=NativeModules.UIManager;
 UIManager&&Object.keys(UIManager).forEach(function(viewName){
 var viewConfig=UIManager[viewName];
-var constants={};
-if(viewConfig.Manager){
+if(viewConfig.Manager){(function(){
+var constants=undefined;
 
 Object.defineProperty(viewConfig,'Constants',{
 enumerable:true,
 get:function(){
+if(constants){
+return constants;}
+
+constants={};
 var viewManager=NativeModules[normalizePrefix(viewConfig.Manager)];
 viewManager&&Object.keys(viewManager).forEach(function(key){
 var value=viewManager[key];
@@ -3434,7 +3568,26 @@ if(typeof value!=='function'){
 constants[key]=value;}});
 
 
-return constants;}});}});
+return constants;}});
+
+
+var commands=undefined;
+
+Object.defineProperty(viewConfig,'Commands',{
+enumerable:true,
+get:function(){
+if(commands){
+return commands;}
+
+commands={};
+var viewManager=NativeModules[normalizePrefix(viewConfig.Manager)];
+viewManager&&Object.keys(viewManager).forEach(function(key,index){
+var value=viewManager[key];
+if(typeof value==='function'){
+commands[key]=index;}});
+
+
+return commands;}});})();}});
 
 
 
@@ -4876,8 +5029,16 @@ host+':'+port+'\n\nError: '+
 e.message);};
 
 
-activeWS.onmessage=function(m){
-eval(m.data);};}};
+activeWS.onmessage=function(_ref){var data=_ref.data;
+data=JSON.parse(data);
+if(data.type==='update'){
+eval(data.body);
+return;}
+
+
+
+var error=data.body;
+throw new Error(error.type+' '+error.description);};}};
 
 
 
@@ -8402,6 +8563,268 @@ return ar?ar[0]:null;}
 
 module.exports=checkFlowAtRuntime;
 });
+__d('Alert',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+var AlertIOS=require('AlertIOS');
+var Platform=require('Platform');
+var DialogModuleAndroid=require('NativeModules').DialogManagerAndroid;var 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Alert=function(){function Alert(){babelHelpers.classCallCheck(this,Alert);}babelHelpers.createClass(Alert,null,[{key:'alert',value:function alert(
+
+
+title,
+message,
+buttons,
+type)
+{
+if(Platform.OS==='ios'){
+AlertIOS.alert(title,message,buttons,type);}else 
+if(Platform.OS==='android'){
+AlertAndroid.alert(title,message,buttons);}}}]);return Alert;}();var 
+
+
+
+
+
+
+
+AlertAndroid=function(){function AlertAndroid(){babelHelpers.classCallCheck(this,AlertAndroid);}babelHelpers.createClass(AlertAndroid,null,[{key:'alert',value:function alert(
+
+
+title,
+message,
+buttons)
+{
+var config={
+title:title||'',
+message:message||''};
+
+
+
+var validButtons=buttons?buttons.slice(0,3):[{text:'OK'}];
+var buttonPositive=validButtons.pop();
+var buttonNegative=validButtons.pop();
+var buttonNeutral=validButtons.pop();
+if(buttonNeutral){
+config=babelHelpers.extends({},config,{buttonNeutral:buttonNeutral.text||''});}
+
+if(buttonNegative){
+config=babelHelpers.extends({},config,{buttonNegative:buttonNegative.text||''});}
+
+if(buttonPositive){
+config=babelHelpers.extends({},config,{buttonPositive:buttonPositive.text||''});}
+
+DialogModuleAndroid.showAlert(
+config,
+function(errorMessage){return console.warn(message);},
+function(action,buttonKey){
+if(action!==DialogModuleAndroid.buttonClicked){
+return;}
+
+if(buttonKey===DialogModuleAndroid.buttonNeutral){
+buttonNeutral.onPress&&buttonNeutral.onPress();}else 
+if(buttonKey===DialogModuleAndroid.buttonNegative){
+buttonNegative.onPress&&buttonNegative.onPress();}else 
+if(buttonKey===DialogModuleAndroid.buttonPositive){
+buttonPositive.onPress&&buttonPositive.onPress();}});}}]);return AlertAndroid;}();
+
+
+
+
+
+
+module.exports=Alert;
+});
+__d('AlertIOS',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+var RCTAlertManager=require('NativeModules').AlertManager;
+var invariant=require('invariant');var 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AlertIOS=function(){function AlertIOS(){babelHelpers.classCallCheck(this,AlertIOS);}babelHelpers.createClass(AlertIOS,null,[{key:'alert',value:function alert(
+
+title,
+message,
+buttons,
+
+
+
+
+type)
+{
+var callbacks=[];
+var buttonsSpec=[];
+var cancelButtonKey;
+var destructiveButtonKey;
+buttons&&buttons.forEach(function(btn,index){
+callbacks[index]=btn.onPress;
+if(btn.style=='cancel'){
+cancelButtonKey=String(index);}else 
+if(btn.style=='destructive'){
+destructiveButtonKey=String(index);}
+
+if(btn.text||index<(buttons||[]).length-1){
+var btnDef={};
+btnDef[index]=btn.text||'';
+buttonsSpec.push(btnDef);}});
+
+
+RCTAlertManager.alertWithArgs({
+title:title||undefined,
+message:message||undefined,
+buttons:buttonsSpec,
+type:type||undefined,
+cancelButtonKey:cancelButtonKey,
+destructiveButtonKey:destructiveButtonKey},
+function(id,value){
+var cb=callbacks[id];
+cb&&cb(value);});}},{key:'prompt',value:function prompt(
+
+
+
+
+
+
+
+title,
+value,
+buttons,
+
+
+
+
+callback)
+{
+if(arguments.length===2){
+if(typeof value==='object'){
+buttons=value;
+value=undefined;}else 
+if(typeof value==='function'){
+callback=value;
+value=undefined;}}else 
+
+if(arguments.length===3&&typeof buttons==='function'){
+callback=buttons;
+buttons=undefined;}
+
+
+invariant(
+!(callback&&buttons)&&(callback||buttons),
+'Must provide either a button list or a callback, but not both');
+
+
+if(!buttons){
+buttons=[{onPress:callback}];}
+
+this.alert(title,value,buttons,'plain-text');}}]);return AlertIOS;}();
+
+
+
+module.exports=AlertIOS;
+});
 __d('XMLHttpRequest',function(global, require, module, exports) {  'use strict';
 
 
@@ -8430,7 +8853,7 @@ return headerArray;}var
 
 
 XMLHttpRequest=function(_XMLHttpRequestBase){babelHelpers.inherits(XMLHttpRequest,_XMLHttpRequestBase);function XMLHttpRequest(){babelHelpers.classCallCheck(this,XMLHttpRequest);return babelHelpers.possibleConstructorReturn(this,Object.getPrototypeOf(XMLHttpRequest).apply(this,arguments));}babelHelpers.createClass(XMLHttpRequest,[{key:'sendImpl',value:function sendImpl(
-method,url,headers,data){
+method,url,headers,data,timeout){
 var body;
 if(typeof data==='string'){
 body={string:data};}else 
@@ -8444,14 +8867,14 @@ return part;})};}else
 {
 body=data;}
 
-
 var useIncrementalUpdates=this.onreadystatechange?true:false;
 var requestId=RCTNetworking.sendRequest(
 method,
 url,
 convertHeadersMapToArray(headers),
 body,
-useIncrementalUpdates);
+useIncrementalUpdates,
+timeout);
 
 this.didCreateRequest(requestId);}}]);return XMLHttpRequest;}(XMLHttpRequestBase);
 
@@ -8526,22 +8949,28 @@ this._parts.push([key,value]);}},{key:'getParts',value:function getParts()
 return this._parts.map(function(_ref){var _ref2=babelHelpers.slicedToArray(_ref,2);var name=_ref2[0];var value=_ref2[1];
 var contentDisposition='form-data; name="'+name+'"';
 
+if(typeof value!=='object'){
+value=''+value;}
+
+
+
 var headers={'content-disposition':contentDisposition};
-if(typeof value==='string'){
-return {string:value,headers:headers,fieldName:name};}
 
 
 
 
 
-
+if(typeof value==='object'){
 if(typeof value.name==='string'){
 headers['content-disposition']+='; filename="'+value.name+'"';}
 
 if(typeof value.type==='string'){
 headers['content-type']=value.type;}
 
-return babelHelpers.extends({},value,{headers:headers,fieldName:name});});}}]);return FormData;}();
+return babelHelpers.extends({},value,{headers:headers,fieldName:name});}
+
+
+return {string:String(value),headers:headers,fieldName:name};});}}]);return FormData;}();
 
 
 
@@ -8575,7 +9004,7 @@ return _requestId++;};var
 
 RCTNetworking=function(){function RCTNetworking(){babelHelpers.classCallCheck(this,RCTNetworking);}babelHelpers.createClass(RCTNetworking,null,[{key:'sendRequest',value:function sendRequest(
 
-method,url,headers,data,useIncrementalUpdates){
+method,url,headers,data,useIncrementalUpdates,timeout){
 var requestId=generateRequestId();
 RCTNetworkingNative.sendRequest(
 method,
@@ -8583,7 +9012,8 @@ url,
 requestId,
 headers,
 data,
-useIncrementalUpdates);
+useIncrementalUpdates,
+timeout);
 return requestId;}},{key:'abortRequest',value:function abortRequest(
 
 
@@ -8647,6 +9077,8 @@ XMLHttpRequestBase=function(){
 
 
 
+
+
 function XMLHttpRequestBase(){babelHelpers.classCallCheck(this,XMLHttpRequestBase);
 this.UNSENT=0;
 this.OPENED=1;
@@ -8657,6 +9089,7 @@ this.DONE=4;
 this.onreadystatechange=null;
 this.onload=null;
 this.upload=undefined;
+this.timeout=0;
 
 this._reset();
 this._method=null;
@@ -8669,6 +9102,7 @@ this.readyState=this.UNSENT;
 this.responseHeaders=undefined;
 this.responseText='';
 this.status=0;
+delete this.responseURL;
 
 this._requestId=null;
 
@@ -8710,11 +9144,16 @@ this.upload.onprogress(event);}}},{key:'_didReceiveResponse',value:function _did
 
 
 
-requestId,status,responseHeaders){
+requestId,status,responseHeaders,responseURL){
 if(requestId===this._requestId){
 this.status=status;
 this.setResponseHeaders(responseHeaders);
-this.setReadyState(this.HEADERS_RECEIVED);}}},{key:'_didReceiveData',value:function _didReceiveData(
+this.setReadyState(this.HEADERS_RECEIVED);
+if(responseURL||responseURL===''){
+this.responseURL=responseURL;}else 
+{
+delete this.responseURL;}}}},{key:'_didReceiveData',value:function _didReceiveData(
+
 
 
 
@@ -8779,6 +9218,9 @@ if(async!==undefined&&!async){
 
 throw new Error('Synchronous http requests are not supported');}
 
+if(!url){
+throw new Error('Cannot load an empty url');}
+
 this._reset();
 this._method=method;
 this._url=url;
@@ -8786,7 +9228,7 @@ this._aborted=false;
 this.setReadyState(this.OPENED);}},{key:'sendImpl',value:function sendImpl(
 
 
-method,url,headers,data){
+method,url,headers,data,timeout){
 throw new Error('Subclass must define sendImpl method');}},{key:'send',value:function send(
 
 
@@ -8798,7 +9240,7 @@ if(this._sent){
 throw new Error('Request has already been sent');}
 
 this._sent=true;
-this.sendImpl(this._method,this._url,this._headers,data);}},{key:'abort',value:function abort()
+this.sendImpl(this._method,this._url,this._headers,data,this.timeout);}},{key:'abort',value:function abort()
 
 
 {
@@ -8835,7 +9277,7 @@ var onreadystatechange=this.onreadystatechange;
 if(onreadystatechange){
 
 
-onreadystatechange(null);}
+onreadystatechange.call(this,null);}
 
 if(newState===this.DONE&&!this._aborted){
 this._sendLoad();}}},{key:'_sendLoad',value:function _sendLoad()
@@ -16658,6 +17100,7 @@ var warning=require('warning');
 
 var EventInterface={
 type:null,
+target:null,
 
 currentTarget:emptyFunction.thatReturnsNull,
 eventPhase:null,
@@ -16691,8 +17134,6 @@ function SyntheticEvent(dispatchConfig,dispatchMarker,nativeEvent,nativeEventTar
 this.dispatchConfig=dispatchConfig;
 this.dispatchMarker=dispatchMarker;
 this.nativeEvent=nativeEvent;
-this.target=nativeEventTarget;
-this.currentTarget=nativeEventTarget;
 
 var Interface=this.constructor.Interface;
 for(var propName in Interface){
@@ -16703,7 +17144,11 @@ var normalize=Interface[propName];
 if(normalize){
 this[propName]=normalize(nativeEvent);}else 
 {
-this[propName]=nativeEvent[propName];}}
+if(propName==='target'){
+this.target=nativeEventTarget;}else 
+{
+this[propName]=nativeEvent[propName];}}}
+
 
 
 
@@ -21732,10 +22177,12 @@ var ImageResizeMode=require('ImageResizeMode');
 var LayoutPropTypes=require('LayoutPropTypes');
 var ReactPropTypes=require('ReactPropTypes');
 var ColorPropType=require('ColorPropType');
+var ShadowPropTypesIOS=require('ShadowPropTypesIOS');
 var TransformPropTypes=require('TransformPropTypes');
 
 var ImageStylePropTypes=babelHelpers.extends({},
 LayoutPropTypes,
+ShadowPropTypesIOS,
 TransformPropTypes,{
 resizeMode:ReactPropTypes.oneOf(Object.keys(ImageResizeMode)),
 backfaceVisibility:ReactPropTypes.oneOf(['visible','hidden']),
@@ -22442,6 +22889,49 @@ return false;}
 
 module.exports=tinycolor;
 });
+__d('ShadowPropTypesIOS',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+var ColorPropType=require('ColorPropType');
+var ReactPropTypes=require('ReactPropTypes');
+
+var ShadowPropTypesIOS={
+
+
+
+
+shadowColor:ColorPropType,
+
+
+
+
+shadowOffset:ReactPropTypes.shape(
+{width:ReactPropTypes.number,height:ReactPropTypes.number}),
+
+
+
+
+
+shadowOpacity:ReactPropTypes.number,
+
+
+
+
+shadowRadius:ReactPropTypes.number};
+
+
+module.exports=ShadowPropTypesIOS;
+});
 __d('TransformPropTypes',function(global, require, module, exports) {  'use strict';
 
 
@@ -22553,6 +23043,12 @@ textAlign:ReactPropTypes.oneOf(
 
 
 
+textAlignVertical:ReactPropTypes.oneOf(
+['auto','top','bottom','center']),
+
+
+
+
 textDecorationLine:ReactPropTypes.oneOf(
 ['none','underline','line-through','underline line-through']),
 
@@ -22574,21 +23070,6 @@ writingDirection:ReactPropTypes.oneOf(
 
 
 
-
-var unsupportedProps=Object.keys({
-padding:null,
-paddingTop:null,
-paddingLeft:null,
-paddingRight:null,
-paddingBottom:null,
-paddingVertical:null,
-paddingHorizontal:null});
-
-
-for(var ii=0;ii<unsupportedProps.length;ii++){
-delete TextStylePropTypes[unsupportedProps[ii]];}
-
-
 module.exports=TextStylePropTypes;
 });
 __d('ViewStylePropTypes',function(global, require, module, exports) {  'use strict';
@@ -22607,6 +23088,7 @@ __d('ViewStylePropTypes',function(global, require, module, exports) {  'use stri
 var LayoutPropTypes=require('LayoutPropTypes');
 var ReactPropTypes=require('ReactPropTypes');
 var ColorPropType=require('ColorPropType');
+var ShadowPropTypesIOS=require('ShadowPropTypesIOS');
 var TransformPropTypes=require('TransformPropTypes');
 
 
@@ -22614,6 +23096,7 @@ var TransformPropTypes=require('TransformPropTypes');
 
 var ViewStylePropTypes=babelHelpers.extends({},
 LayoutPropTypes,
+ShadowPropTypesIOS,
 TransformPropTypes,{
 backfaceVisibility:ReactPropTypes.oneOf(['visible','hidden']),
 backgroundColor:ColorPropType,
@@ -22635,12 +23118,6 @@ borderBottomWidth:ReactPropTypes.number,
 borderLeftWidth:ReactPropTypes.number,
 opacity:ReactPropTypes.number,
 overflow:ReactPropTypes.oneOf(['visible','hidden']),
-shadowColor:ColorPropType,
-shadowOffset:ReactPropTypes.shape(
-{width:ReactPropTypes.number,height:ReactPropTypes.number}),
-
-shadowOpacity:ReactPropTypes.number,
-shadowRadius:ReactPropTypes.number,
 
 
 
@@ -23934,9 +24411,15 @@ __d('StyleSheet',function(global, require, module, exports) {  'use strict';
 
 
 
+var PixelRatio=require('PixelRatio');
 var StyleSheetRegistry=require('StyleSheetRegistry');
 var StyleSheetValidation=require('StyleSheetValidation');
-var flattenStyle=require('flattenStyle');var 
+
+var flatten=require('flattenStyle');
+
+var hairlineWidth=PixelRatio.roundToNearestPixel(0.4);
+if(hairlineWidth===0){
+hairlineWidth=1/PixelRatio.get();}
 
 
 
@@ -23982,23 +24465,207 @@ var flattenStyle=require('flattenStyle');var
 
 
 
-StyleSheet=function(){function StyleSheet(){babelHelpers.classCallCheck(this,StyleSheet);}babelHelpers.createClass(StyleSheet,null,[{key:'create',value:function create(
+
+module.exports={
 
 
-obj){
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+hairlineWidth:hairlineWidth,
+
+flatten:flatten,
+
+
+
+
+create:function(obj){
 var result={};
 for(var key in obj){
 StyleSheetValidation.validateStyle(key,obj);
 result[key]=StyleSheetRegistry.registerStyle(obj[key]);}
 
-return result;}}]);return StyleSheet;}();
+return result;}};
+});
+__d('PixelRatio',function(global, require, module, exports) {  'use strict';
 
 
 
 
-StyleSheet.flatten=flattenStyle;
 
-module.exports=StyleSheet;
+
+
+
+
+
+
+
+var Dimensions=require('Dimensions');var 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PixelRatio=function(){function PixelRatio(){babelHelpers.classCallCheck(this,PixelRatio);}babelHelpers.createClass(PixelRatio,null,[{key:'get',value:function get()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+return Dimensions.get('window').scale;}},{key:'getFontScale',value:function getFontScale()
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+return Dimensions.get('window').fontScale||PixelRatio.get();}},{key:'getPixelSizeForLayoutSize',value:function getPixelSizeForLayoutSize(
+
+
+
+
+
+
+
+layoutSize){
+return Math.round(layoutSize*PixelRatio.get());}},{key:'roundToNearestPixel',value:function roundToNearestPixel(
+
+
+
+
+
+
+
+
+layoutSize){
+var ratio=PixelRatio.get();
+return Math.round(layoutSize*ratio)/ratio;}},{key:'startDetecting',value:function startDetecting()
+
+
+
+{}}]);return PixelRatio;}();
+
+
+module.exports=PixelRatio;
+});
+__d('Dimensions',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+var UIManager=require('UIManager');
+
+var invariant=require('invariant');
+
+var dimensions=UIManager.Dimensions;
+
+
+
+
+if(dimensions&&dimensions.windowPhysicalPixels){
+
+dimensions=JSON.parse(JSON.stringify(dimensions));
+
+var windowPhysicalPixels=dimensions.windowPhysicalPixels;
+dimensions.window={
+width:windowPhysicalPixels.width/windowPhysicalPixels.scale,
+height:windowPhysicalPixels.height/windowPhysicalPixels.scale,
+scale:windowPhysicalPixels.scale,
+fontScale:windowPhysicalPixels.fontScale};
+
+
+
+delete dimensions.windowPhysicalPixels;}var 
+
+
+Dimensions=function(){function Dimensions(){babelHelpers.classCallCheck(this,Dimensions);}babelHelpers.createClass(Dimensions,null,[{key:'set',value:function set(
+
+
+
+
+
+dims){
+babelHelpers.extends(dimensions,dims);
+return true;}},{key:'get',value:function get(
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+dim){
+invariant(dimensions[dim],'No dimension set for key '+dim);
+return dimensions[dim];}}]);return Dimensions;}();
+
+
+
+module.exports=Dimensions;
 });
 __d('StyleSheetValidation',function(global, require, module, exports) {  'use strict';
 
@@ -25372,6 +26039,7 @@ var AssetRegistry=require('AssetRegistry');
 var PixelRatio=require('PixelRatio');
 var Platform=require('Platform');
 var SourceCode=require('NativeModules').SourceCode;
+var assetPathUtils=require('react-native/local-cli/bundle/assetPathUtils.js');
 
 var _serverURL,_offlinePath;
 
@@ -25409,18 +26077,18 @@ return _offlinePath;}
 
 
 function getPathInArchive(asset){
+var offlinePath=getOfflinePath();
 if(Platform.OS==='android'){
-var assetDir=getBasePath(asset);
+if(offlinePath){
+
+return 'file://'+offlinePath+getAssetPathInDrawableFolder(asset);}
 
 
-return (assetDir+'/'+asset.name).
-toLowerCase().
-replace(/\//g,'_').
-replace(/([^a-z0-9_])/g,'').
-replace(/^assets_/,'');}else 
+
+return assetPathUtils.getAndroidResourceIdentifier(asset);}else 
 {
 
-return getOfflinePath()+getScaledAssetPath(asset);}}
+return offlinePath+getScaledAssetPath(asset);}}
 
 
 
@@ -25436,24 +26104,21 @@ return devServerUrl+getScaledAssetPath(asset)+'?platform='+Platform.OS+
 
 
 
-function getBasePath(asset){
-
-
-var path=asset.httpServerLocation;
-if(path[0]==='/'){
-path=path.substr(1);}
-
-return path;}
-
-
-
-
-
 function getScaledAssetPath(asset){
 var scale=pickScale(asset.scales,PixelRatio.get());
 var scaleSuffix=scale===1?'':'@'+scale+'x';
-var assetDir=getBasePath(asset);
+var assetDir=assetPathUtils.getBasePath(asset);
 return assetDir+'/'+asset.name+scaleSuffix+'.'+asset.type;}
+
+
+
+
+
+function getAssetPathInDrawableFolder(asset){
+var scale=pickScale(asset.scales,PixelRatio.get());
+var drawbleFolder=assetPathUtils.getAndroidDrawableFolderName(asset,scale);
+var fileName=assetPathUtils.getAndroidResourceIdentifier(asset);
+return drawbleFolder+'/'+fileName+'.'+asset.type;}
 
 
 function pickScale(scales,deviceScale){
@@ -25532,7 +26197,7 @@ return assets[assetId-1];}
 
 module.exports={registerAsset:registerAsset,getAssetByID:getAssetByID};
 });
-__d('PixelRatio',function(global, require, module, exports) {  'use strict';
+__d('react-native/local-cli/bundle/assetPathUtils.js',function(global, require, module, exports) {  'use strict';
 
 
 
@@ -25542,166 +26207,51 @@ __d('PixelRatio',function(global, require, module, exports) {  'use strict';
 
 
 
+function getAndroidAssetSuffix(scale){
+switch(scale){
+case 0.75:return 'ldpi';
+case 1:return 'mdpi';
+case 1.5:return 'hdpi';
+case 2:return 'xhdpi';
+case 3:return 'xxhdpi';
+case 4:return 'xxxhdpi';}}
 
 
 
-var Dimensions=require('Dimensions');var 
+function getAndroidDrawableFolderName(asset,scale){
+var suffix=getAndroidAssetSuffix(scale);
+if(!suffix){
+throw new Error(
+'Don\'t know which android drawable suffix to use for asset: '+
+JSON.stringify(asset));}
 
 
+var androidFolder='drawable-'+suffix;
+return androidFolder;}
 
 
+function getAndroidResourceIdentifier(asset){
+var folderPath=getBasePath(asset);
+return (folderPath+'/'+asset.name).
+toLowerCase().
+replace(/\//g,'_').
+replace(/([^a-z0-9_])/g,'').
+replace(/^assets_/,'');}
 
 
+function getBasePath(asset){
+var basePath=asset.httpServerLocation;
+if(basePath[0]==='/'){
+basePath=basePath.substr(1);}
 
+return basePath;}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-PixelRatio=function(){function PixelRatio(){babelHelpers.classCallCheck(this,PixelRatio);}babelHelpers.createClass(PixelRatio,null,[{key:'get',value:function get()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{
-return Dimensions.get('window').scale;}},{key:'getFontScale',value:function getFontScale()
-
-
-
-
-
-
-
-
-
-
-
-
-
-{
-return Dimensions.get('window').fontScale||PixelRatio.get();}},{key:'getPixelSizeForLayoutSize',value:function getPixelSizeForLayoutSize(
-
-
-
-
-
-
-
-layoutSize){
-return Math.round(layoutSize*PixelRatio.get());}},{key:'startDetecting',value:function startDetecting()
-
-
-
-{}}]);return PixelRatio;}();
-
-
-module.exports=PixelRatio;
-});
-__d('Dimensions',function(global, require, module, exports) {  'use strict';
-
-
-
-
-
-
-
-
-
-
-
-
-var UIManager=require('UIManager');
-
-var invariant=require('invariant');
-
-var dimensions=UIManager.Dimensions;
-
-
-
-
-if(dimensions&&dimensions.windowPhysicalPixels){
-
-dimensions=JSON.parse(JSON.stringify(dimensions));
-
-var windowPhysicalPixels=dimensions.windowPhysicalPixels;
-dimensions.window={
-width:windowPhysicalPixels.width/windowPhysicalPixels.scale,
-height:windowPhysicalPixels.height/windowPhysicalPixels.scale,
-scale:windowPhysicalPixels.scale,
-fontScale:windowPhysicalPixels.fontScale};
-
-
-
-delete dimensions.windowPhysicalPixels;}var 
-
-
-Dimensions=function(){function Dimensions(){babelHelpers.classCallCheck(this,Dimensions);}babelHelpers.createClass(Dimensions,null,[{key:'set',value:function set(
-
-
-
-
-
-dims){
-babelHelpers.extends(dimensions,dims);
-return true;}},{key:'get',value:function get(
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dim){
-invariant(dimensions[dim],'No dimension set for key '+dim);
-return dimensions[dim];}}]);return Dimensions;}();
-
-
-
-module.exports=Dimensions;
+module.exports={
+getAndroidAssetSuffix:getAndroidAssetSuffix,
+getAndroidDrawableFolderName:getAndroidDrawableFolderName,
+getAndroidResourceIdentifier:getAndroidResourceIdentifier,
+getBasePath:getBasePath};
 });
 __d('ReactChildren',function(global, require, module, exports) {  'use strict';
 
@@ -30550,7 +31100,16 @@ onChangeVisibleRows:React.PropTypes.func,
 
 
 
-removeClippedSubviews:React.PropTypes.bool}),
+removeClippedSubviews:React.PropTypes.bool,
+
+
+
+
+
+
+
+
+stickyHeaderIndices:PropTypes.arrayOf(PropTypes.number)}),
 
 
 
@@ -30575,6 +31134,10 @@ this.refs[SCROLLVIEW_REF].getScrollResponder&&
 this.refs[SCROLLVIEW_REF].getScrollResponder();},
 
 
+scrollTo:function(destY,destX){
+this.getScrollResponder().scrollResponderScrollTo(destX||0,destY||0);},
+
+
 setNativeProps:function(props){
 this.refs[SCROLLVIEW_REF].setNativeProps(props);},
 
@@ -30589,7 +31152,8 @@ initialListSize:DEFAULT_INITIAL_ROWS,
 pageSize:DEFAULT_PAGE_SIZE,
 renderScrollComponent:function(props){return React.createElement(ScrollView,props);},
 scrollRenderAheadDistance:DEFAULT_SCROLL_RENDER_AHEAD,
-onEndReachedThreshold:DEFAULT_END_REACHED_THRESHOLD};},
+onEndReachedThreshold:DEFAULT_END_REACHED_THRESHOLD,
+stickyHeaderIndices:[]};},
 
 
 
@@ -30628,13 +31192,22 @@ _this._measureAndUpdateScrollProps();});},
 componentWillReceiveProps:function(nextProps){var _this2=this;
 if(this.props.dataSource!==nextProps.dataSource){
 this.setState(function(state,props){
-var rowsToRender=Math.min(
-state.curRenderedRowsCount+props.pageSize,
-props.dataSource.getRowCount());
-
 _this2._prevRenderedRowsCount=0;
 return {
-curRenderedRowsCount:rowsToRender};});}},
+curRenderedRowsCount:Math.min(
+state.curRenderedRowsCount+props.pageSize,
+props.dataSource.getRowCount())};});}
+
+
+
+
+if(this.props.initialListSize!==nextProps.initialListSize){
+this.setState(function(state,props){
+return {
+curRenderedRowsCount:Math.max(
+state.curRenderedRowsCount,
+props.initialListSize)};});}},
+
 
 
 
@@ -30742,7 +31315,7 @@ props.removeClippedSubviews=true;}
 
 babelHelpers.extends(props,{
 onScroll:this._onScroll,
-stickyHeaderIndices:sectionHeaderIndices,
+stickyHeaderIndices:this.props.stickyHeaderIndices.concat(sectionHeaderIndices),
 
 
 
@@ -31691,6 +32264,8 @@ zoomScale:PropTypes.number,
 
 
 
+
+
 refreshControl:PropTypes.element,
 
 
@@ -31730,17 +32305,17 @@ getInnerViewNode:function(){
 return React.findNodeHandle(this.refs[INNERVIEW]);},
 
 
-scrollTo:function(destY,destX){
+scrollTo:function(){var destY=arguments.length<=0||arguments[0]===undefined?0:arguments[0];var destX=arguments.length<=1||arguments[1]===undefined?0:arguments[1];var animated=arguments.length<=2||arguments[2]===undefined?true:arguments[2];
 
-this.getScrollResponder().scrollResponderScrollTo(destX||0,destY||0);},
+this.getScrollResponder().scrollResponderScrollTo(destX,destY,animated);},
 
 
-scrollWithoutAnimationTo:function(destY,destX){
 
-this.getScrollResponder().scrollResponderScrollWithoutAnimationTo(
-destX||0,
-destY||0);},
 
+
+scrollWithoutAnimationTo:function(){var destY=arguments.length<=0||arguments[0]===undefined?0:arguments[0];var destX=arguments.length<=1||arguments[1]===undefined?0:arguments[1];
+console.warn('`scrollWithoutAnimationTo` is deprecated. Use `scrollTo` instead');
+this.scrollTo(destX,destY,false);},
 
 
 handleScroll:function(e){
@@ -32349,18 +32924,18 @@ return isAnimating;},
 
 
 
-scrollResponderScrollTo:function(offsetX,offsetY){
+scrollResponderScrollTo:function(offsetX,offsetY){var animated=arguments.length<=2||arguments[2]===undefined?true:arguments[2];
 if(Platform.OS==='android'){
 UIManager.dispatchViewManagerCommand(
 React.findNodeHandle(this),
-UIManager.RCTScrollView.Commands.scrollTo,
+UIManager.RCTScrollView.Commands[animated?'scrollTo':'scrollWithoutAnimationTo'],
 [Math.round(offsetX),Math.round(offsetY)]);}else 
 
 {
 ScrollViewManager.scrollTo(
 React.findNodeHandle(this),
-{x:offsetX,y:offsetY});}},
-
+{x:offsetX,y:offsetY},
+animated);}},
 
 
 
@@ -32369,16 +32944,8 @@ React.findNodeHandle(this),
 
 
 scrollResponderScrollWithoutAnimationTo:function(offsetX,offsetY){
-if(Platform.OS==='android'){
-UIManager.dispatchViewManagerCommand(
-React.findNodeHandle(this),
-UIManager.RCTScrollView.Commands.scrollWithoutAnimationTo,
-[offsetX,offsetY]);}else 
-
-{
-ScrollViewManager.scrollWithoutAnimationTo(
-React.findNodeHandle(this),
-{x:offsetX,y:offsetY});}},
+console.warn('`scrollResponderScrollWithoutAnimationTo` is deprecated. Use `scrollResponderScrollTo` instead');
+self.scrollResponderScrollTo(offsetX,offsetY,false);},
 
 
 
@@ -32386,12 +32953,11 @@ React.findNodeHandle(this),
 
 
 
-
-scrollResponderZoomTo:function(rect){
+scrollResponderZoomTo:function(rect){var animated=arguments.length<=1||arguments[1]===undefined?true:arguments[1];
 if(Platform.OS==='android'){
 invariant('zoomToRect is not implemented');}else 
 {
-ScrollViewManager.zoomToRect(React.findNodeHandle(this),rect);}},
+ScrollViewManager.zoomToRect(React.findNodeHandle(this),rect,animated);}},
 
 
 
@@ -32771,8 +33337,15 @@ style:View.propTypes.style,
 
 
 
-
 showsUserLocation:React.PropTypes.bool,
+
+
+
+
+
+
+
+followUserLocation:React.PropTypes.bool,
 
 
 
@@ -32873,9 +33446,7 @@ animateDrop:React.PropTypes.bool,
 
 
 
-
 draggable:React.PropTypes.bool,
-
 
 
 
@@ -32998,7 +33569,7 @@ active:React.PropTypes.bool}),
 
 
 render:function(){var _this=this;
-var children=[];var _props=this.props;var annotations=_props.annotations;var overlays=_props.overlays;
+var children=[];var _props=this.props;var annotations=_props.annotations;var overlays=_props.overlays;var followUserLocation=_props.followUserLocation;
 annotations=annotations&&annotations.map(function(annotation){var 
 
 id=
@@ -33146,11 +33717,17 @@ _this.props.onRegionChangeComplete(event.nativeEvent.region);}};}
 
 
 
+
+if(followUserLocation===undefined){
+followUserLocation=this.props.showUserLocation;}
+
+
 return (
 React.createElement(RCTMap,babelHelpers.extends({},
 this.props,{
 annotations:annotations,
 children:children,
+followUserLocation:followUserLocation,
 overlays:overlays,
 onPress:onPress,
 onChange:onChange,
@@ -33464,6 +34041,7 @@ var GESTURE_ACTIONS=[
 
 
 
+
 var Navigator=React.createClass({displayName:'Navigator',
 
 propTypes:{
@@ -33573,7 +34151,7 @@ initialRouteIndex!==-1,
 
 return {
 sceneConfigStack:routeStack.map(
-function(route){return _this.props.configureScene(route);}),
+function(route){return _this.props.configureScene(route,routeStack);}),
 
 routeStack:routeStack,
 presentedIndex:initialRouteIndex,
@@ -33648,7 +34226,7 @@ var destIndex=nextRouteStack.length-1;
 this.setState({
 routeStack:nextRouteStack,
 sceneConfigStack:nextRouteStack.map(
-this.props.configureScene),
+function(route){return _this3.props.configureScene(route,nextRouteStack);}),
 
 presentedIndex:destIndex,
 activeGesture:null,
@@ -34193,7 +34771,7 @@ var activeAnimationConfigStack=this.state.sceneConfigStack.slice(0,activeLength)
 var nextStack=activeStack.concat([route]);
 var destIndex=nextStack.length-1;
 var nextAnimationConfigStack=activeAnimationConfigStack.concat([
-this.props.configureScene(route)]);
+this.props.configureScene(route,nextStack)]);
 
 this._emitWillFocus(nextStack[destIndex]);
 this.setState({
@@ -34261,7 +34839,7 @@ return;}
 var nextRouteStack=this.state.routeStack.slice();
 var nextAnimationModeStack=this.state.sceneConfigStack.slice();
 nextRouteStack[index]=route;
-nextAnimationModeStack[index]=this.props.configureScene(route);
+nextAnimationModeStack[index]=this.props.configureScene(route,nextRouteStack);
 
 if(index===this.state.presentedIndex){
 this._emitWillFocus(route);}
@@ -34364,14 +34942,17 @@ this)));},
 
 
 
-_renderNavigationBar:function(){var _this11=this;
-if(!this.props.navigationBar){
+_renderNavigationBar:function(){var _this11=this;var 
+navigationBar=this.props.navigationBar;
+if(!navigationBar){
 return null;}
 
-return React.cloneElement(this.props.navigationBar,{
+return React.cloneElement(navigationBar,{
 ref:function(navBar){
-_this11.props.navigationBar.ref instanceof Function&&_this11.props.navigationBar.ref(navBar);
-_this11._navBar=navBar;},
+_this11._navBar=navBar;
+if(navigationBar&&typeof navigationBar.ref==='function'){
+navigationBar.ref(navBar);}},
+
 
 navigator:this._navigationBarNavigator,
 navState:this.state});},
@@ -44123,6 +44704,163 @@ __d('NavigatorIOS',function(global, require, module, exports) {  'use strict';
 
 module.exports=require('UnimplementedView');
 });
+__d('Picker',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+
+var ColorPropType=require('ColorPropType');
+var PickerIOS=require('PickerIOS');
+var PickerAndroid=require('PickerAndroid');
+var Platform=require('Platform');
+var React=require('React');
+var StyleSheet=require('StyleSheet');
+var StyleSheetPropType=require('StyleSheetPropType');
+var TextStylePropTypes=require('TextStylePropTypes');
+var UnimplementedView=require('UnimplementedView');
+var View=require('View');
+var ViewStylePropTypes=require('ViewStylePropTypes');
+
+var itemStylePropType=StyleSheetPropType(TextStylePropTypes);
+
+var pickerStyleType=StyleSheetPropType(babelHelpers.extends({},
+ViewStylePropTypes,{
+color:ColorPropType}));
+
+
+var MODE_DIALOG='dialog';
+var MODE_DROPDOWN='dropdown';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var Picker=React.createClass({displayName:'Picker',
+
+statics:{
+
+
+
+MODE_DIALOG:MODE_DIALOG,
+
+
+
+MODE_DROPDOWN:MODE_DROPDOWN},
+
+
+getDefaultProps:function(){
+return {
+mode:MODE_DIALOG};},
+
+
+
+propTypes:babelHelpers.extends({},
+View.propTypes,{
+style:pickerStyleType,
+
+
+
+selectedValue:React.PropTypes.any,
+
+
+
+
+
+onValueChange:React.PropTypes.func,
+
+
+
+
+
+enabled:React.PropTypes.bool,
+
+
+
+
+
+
+
+mode:React.PropTypes.oneOf([MODE_DIALOG,MODE_DROPDOWN]),
+
+
+
+
+itemStyle:itemStylePropType,
+
+
+
+
+prompt:React.PropTypes.string,
+
+
+
+testID:React.PropTypes.string}),
+
+
+render:function(){
+if(Platform.OS==='ios'){
+return React.createElement(PickerIOS,this.props,this.props.children);}else 
+if(Platform.OS==='android'){
+return React.createElement(PickerAndroid,this.props,this.props.children);}else 
+{
+return React.createElement(UnimplementedView,null);}}});
+
+
+
+
+
+
+
+Picker.Item=React.createClass({displayName:'Item',
+
+propTypes:{
+
+
+
+label:React.PropTypes.string.isRequired,
+
+
+
+
+value:React.PropTypes.any,
+
+
+
+
+color:ColorPropType,
+
+
+
+testID:React.PropTypes.string},
+
+
+render:function(){
+
+throw null;}});
+
+
+
+module.exports=Picker;
+});
 __d('PickerIOS',function(global, require, module, exports) {  'use strict';
 
 
@@ -44138,6 +44876,148 @@ __d('PickerIOS',function(global, require, module, exports) {  'use strict';
 
 
 module.exports=require('UnimplementedView');
+});
+__d('PickerAndroid',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+
+var ColorPropType=require('ColorPropType');
+var React=require('React');
+var ReactChildren=require('ReactChildren');
+var ReactPropTypes=require('ReactPropTypes');
+var StyleSheet=require('StyleSheet');
+var StyleSheetPropType=require('StyleSheetPropType');
+var View=require('View');
+var ViewStylePropTypes=require('ViewStylePropTypes');
+
+var processColor=require('processColor');
+var requireNativeComponent=require('requireNativeComponent');
+
+var REF_PICKER='picker';
+var MODE_DIALOG='dialog';
+var MODE_DROPDOWN='dropdown';
+
+var pickerStyleType=StyleSheetPropType(babelHelpers.extends({},
+ViewStylePropTypes,{
+color:ColorPropType}));
+
+
+
+
+
+
+
+var PickerAndroid=React.createClass({displayName:'PickerAndroid',
+
+propTypes:babelHelpers.extends({},
+View.propTypes,{
+style:pickerStyleType,
+selectedValue:React.PropTypes.any,
+enabled:ReactPropTypes.bool,
+mode:ReactPropTypes.oneOf(['dialog','dropdown']),
+onValueChange:ReactPropTypes.func,
+prompt:ReactPropTypes.string,
+testID:ReactPropTypes.string}),
+
+
+getInitialState:function(){
+return this._stateFromProps(this.props);},
+
+
+componentWillReceiveProps:function(nextProps){
+this.setState(this._stateFromProps(nextProps));},
+
+
+
+_stateFromProps:function(props){
+var selectedIndex=0;
+var items=ReactChildren.map(props.children,function(child,index){
+if(child.props.value===props.selectedValue){
+selectedIndex=index;}
+
+var childProps={
+value:child.props.value,
+label:child.props.label};
+
+if(child.props.color){
+childProps.color=processColor(child.props.color);}
+
+return childProps;});
+
+return {selectedIndex:selectedIndex,items:items};},
+
+
+render:function(){
+var Picker=this.props.mode===MODE_DROPDOWN?DropdownPicker:DialogPicker;
+
+var nativeProps={
+enabled:this.props.enabled,
+items:this.state.items,
+mode:this.props.mode,
+onSelect:this._onChange,
+prompt:this.props.prompt,
+selected:this.state.selectedIndex,
+testID:this.props.testID,
+style:[styles.pickerAndroid,this.props.style]};
+
+
+return React.createElement(Picker,babelHelpers.extends({ref:REF_PICKER},nativeProps));},
+
+
+_onChange:function(event){
+if(this.props.onValueChange){
+var position=event.nativeEvent.position;
+if(position>=0){
+var value=this.props.children[position].props.value;
+this.props.onValueChange(value);}else 
+{
+this.props.onValueChange(null);}}
+
+
+
+
+
+
+
+
+
+if(this.refs[REF_PICKER]&&this.state.selectedIndex!==event.nativeEvent.position){
+this.refs[REF_PICKER].setNativeProps({selected:this.state.selectedIndex});}}});
+
+
+
+
+var styles=StyleSheet.create({
+pickerAndroid:{
+
+
+
+
+width:80,
+height:50}});
+
+
+
+var cfg={
+nativeOnly:{
+items:true,
+selected:true}};
+
+
+var DropdownPicker=requireNativeComponent('AndroidDropdownPicker',PickerAndroid,cfg);
+var DialogPicker=requireNativeComponent('AndroidDialogPicker',PickerAndroid,cfg);
+
+module.exports=PickerAndroid;
 });
 __d('ProgressBarAndroid',function(global, require, module, exports) {  'use strict';
 
@@ -44162,6 +45042,7 @@ var requireNativeComponent=require('requireNativeComponent');
 
 var STYLE_ATTRIBUTES=[
 'Horizontal',
+'Normal',
 'Small',
 'Large',
 'Inverse',
@@ -44217,6 +45098,7 @@ View.propTypes,{
 
 
 
+
 styleAttr:ReactPropTypes.oneOf(STYLE_ATTRIBUTES),
 
 
@@ -44239,7 +45121,7 @@ testID:ReactPropTypes.string}),
 
 getDefaultProps:function(){
 return {
-styleAttr:'Large',
+styleAttr:'Normal',
 indeterminate:true};},
 
 
@@ -44478,7 +45360,7 @@ props.onResponderTerminationRequest=function(){return false;};
 if(Platform.OS==='android'){
 props.enabled=!this.props.disabled;
 props.on=this.props.value;
-props.style=[styles.rctSwitchAndroid,this.props.style];}else 
+props.style=this.props.style;}else 
 if(Platform.OS==='ios'){
 props.style=[styles.rctSwitchIOS,this.props.style];}
 
@@ -44495,11 +45377,7 @@ onChange:this._onChange})));}});
 var styles=StyleSheet.create({
 rctSwitchIOS:{
 height:31,
-width:51},
-
-rctSwitchAndroid:{
-height:27,
-width:40}});
+width:51}});
 
 
 
@@ -45128,24 +46006,6 @@ autoFocus:PropTypes.bool,
 
 
 
-
-textAlign:PropTypes.oneOf([
-'start',
-'center',
-'end']),
-
-
-
-
-
-textAlignVertical:PropTypes.oneOf([
-'top',
-'center',
-'bottom']),
-
-
-
-
 editable:PropTypes.bool,
 
 
@@ -45158,14 +46018,14 @@ editable:PropTypes.bool,
 keyboardType:PropTypes.oneOf([
 
 'default',
-'numeric',
 'email-address',
+'numeric',
+'phone-pad',
 
 'ascii-capable',
 'numbers-and-punctuation',
 'url',
 'number-pad',
-'phone-pad',
 'name-phone-pad',
 'decimal-pad',
 'twitter',
@@ -45240,6 +46100,10 @@ onChangeText:PropTypes.func,
 
 
 onEndEditing:PropTypes.func,
+
+
+
+onSelectionChange:PropTypes.func,
 
 
 
@@ -45497,12 +46361,20 @@ textContainer));},
 
 
 
-_renderAndroid:function(){
-var autoCapitalize=UIManager.UIText.AutocapitalizationType[this.props.autoCapitalize];
-var textAlign=
-UIManager.AndroidTextInput.Constants.TextAlign[this.props.textAlign];
-var textAlignVertical=
-UIManager.AndroidTextInput.Constants.TextAlignVertical[this.props.textAlignVertical];
+_renderAndroid:function(){var _this3=this;
+var onSelectionChange;
+if(this.props.selectionState||this.props.onSelectionChange){
+onSelectionChange=function(event){
+if(_this3.props.selectionState){
+var selection=event.nativeEvent.selection;
+_this3.props.selectionState.update(selection.start,selection.end);}
+
+_this3.props.onSelectionChange&&_this3.props.onSelectionChange(event);};}
+
+
+
+var autoCapitalize=
+UIManager.AndroidTextInput.Constants.AutoCapitalizationType[this.props.autoCapitalize];
 var children=this.props.children;
 var childCount=0;
 ReactChildren.forEach(children,function(){return ++childCount;});
@@ -45513,14 +46385,13 @@ invariant(
 if(childCount>1){
 children=React.createElement(Text,null,children);}
 
+
 var textContainer=
 React.createElement(AndroidTextInput,{
 ref:'input',
 style:[this.props.style],
 autoCapitalize:autoCapitalize,
 autoCorrect:this.props.autoCorrect,
-textAlign:textAlign,
-textAlignVertical:textAlignVertical,
 keyboardType:this.props.keyboardType,
 mostRecentEventCount:0,
 multiline:this.props.multiline,
@@ -45529,6 +46400,7 @@ maxLength:this.props.maxLength,
 onFocus:this._onFocus,
 onBlur:this._onBlur,
 onChange:this._onChange,
+onSelectionChange:onSelectionChange,
 onTextInput:this._onTextInput,
 onEndEditing:this.props.onEndEditing,
 onSubmitEditing:this.props.onSubmitEditing,
@@ -46422,6 +47294,10 @@ var PRESS_RETENTION_OFFSET={top:20,left:20,right:20,bottom:30};
 
 
 
+
+
+
+
 var TouchableWithoutFeedback=React.createClass({displayName:'TouchableWithoutFeedback',
 mixins:[TimerMixin,Touchable.Mixin],
 
@@ -47125,19 +48001,18 @@ var Touchable=require('Touchable');
 var TouchableWithoutFeedback=require('TouchableWithoutFeedback');
 var UIManager=require('UIManager');
 
-var createStrictShapeTypeChecker=require('createStrictShapeTypeChecker');
 var ensurePositiveDelayProps=require('ensurePositiveDelayProps');
 var onlyChild=require('onlyChild');
 var processColor=require('processColor');
 var requireNativeComponent=require('requireNativeComponent');
 
-var rippleBackgroundPropType=createStrictShapeTypeChecker({
+var rippleBackgroundPropType=PropTypes.shape({
 type:React.PropTypes.oneOf(['RippleAndroid']),
 color:PropTypes.number,
 borderless:PropTypes.bool});
 
 
-var themeAttributeBackgroundPropType=createStrictShapeTypeChecker({
+var themeAttributeBackgroundPropType=PropTypes.shape({
 type:React.PropTypes.oneOf(['ThemeAttrAndroid']),
 attribute:PropTypes.string.isRequired});
 
@@ -49966,6 +50841,9 @@ _childrenWithOverridenStyle:function(){
 
 
 return React.Children.map(this.props.children,function(child){
+if(!child){
+return null;}
+
 var newProps=babelHelpers.extends({},
 child.props,{
 style:[child.props.style,{
@@ -50087,6 +50965,10 @@ propTypes:babelHelpers.extends({},
 View.propTypes,{
 renderError:PropTypes.func,
 renderLoading:PropTypes.func,
+onLoad:PropTypes.func,
+onLoadEnd:PropTypes.func,
+onLoadStart:PropTypes.func,
+onError:PropTypes.func,
 url:PropTypes.string,
 html:PropTypes.string,
 automaticallyAdjustContentInsets:PropTypes.bool,
@@ -50099,13 +50981,13 @@ style:View.propTypes.style,
 
 
 
-javaScriptEnabledAndroid:PropTypes.bool,
+javaScriptEnabled:PropTypes.bool,
 
 
 
 
 
-domStorageEnabledAndroid:PropTypes.bool,
+domStorageEnabled:PropTypes.bool,
 
 
 
@@ -50157,7 +51039,17 @@ var webViewStyles=[styles.container,this.props.style];
 if(this.state.viewState===WebViewState.LOADING||
 this.state.viewState===WebViewState.ERROR){
 
-webViewStyles.push(styles.hidden);}
+webViewStyles.push(styles.hidden);}var _props=
+
+
+this.props;var javaScriptEnabled=_props.javaScriptEnabled;var domStorageEnabled=_props.domStorageEnabled;
+if(this.props.javaScriptEnabledAndroid){
+console.warn('javaScriptEnabledAndroid is deprecated. Use javaScriptEnabled instead');
+javaScriptEnabled=this.props.javaScriptEnabledAndroid;}
+
+if(this.props.domStorageEnabledAndroid){
+console.warn('domStorageEnabledAndroid is deprecated. Use domStorageEnabled instead');
+domStorageEnabled=this.props.domStorageEnabledAndroid;}
 
 
 var webView=
@@ -50169,8 +51061,8 @@ url:this.props.url,
 html:this.props.html,
 injectedJavaScript:this.props.injectedJavaScript,
 userAgent:this.props.userAgent,
-javaScriptEnabledAndroid:this.props.javaScriptEnabledAndroid,
-domStorageEnabledAndroid:this.props.domStorageEnabledAndroid,
+javaScriptEnabled:javaScriptEnabled,
+domStorageEnabled:domStorageEnabled,
 contentInset:this.props.contentInset,
 automaticallyAdjustContentInsets:this.props.automaticallyAdjustContentInsets,
 onLoadingStart:this.onLoadingStart,
@@ -50226,11 +51118,16 @@ return React.findNodeHandle(this.refs[RCT_WEBVIEW_REF]);},
 
 
 onLoadingStart:function(event){
+var onLoadStart=this.props.onLoadStart;
+onLoadStart&&onLoadStart(event);
 this.updateNavigationState(event);},
 
 
 onLoadingError:function(event){
-event.persist();
+event.persist();var _props2=
+this.props;var onError=_props2.onError;var onLoadEnd=_props2.onLoadEnd;
+onError&&onError(event);
+onLoadEnd&&onLoadEnd(event);
 console.error('Encountered an error loading page',event.nativeEvent);
 
 this.setState({
@@ -50239,7 +51136,10 @@ viewState:WebViewState.ERROR});},
 
 
 
-onLoadingFinish:function(event){
+onLoadingFinish:function(event){var _props3=
+this.props;var onLoad=_props3.onLoad;var onLoadEnd=_props3.onLoadEnd;
+onLoad&&onLoad(event);
+onLoadEnd&&onLoadEnd(event);
 this.setState({
 viewState:WebViewState.IDLE});
 
@@ -50344,268 +51244,6 @@ AdSupport.getAdvertisingId(onSuccess,onFailure);},
 
 getAdvertisingTrackingEnabled:function(onSuccess,onFailure){
 AdSupport.getAdvertisingTrackingEnabled(onSuccess,onFailure);}};
-});
-__d('Alert',function(global, require, module, exports) {  'use strict';
-
-
-
-
-
-
-
-
-
-
-
-
-var AlertIOS=require('AlertIOS');
-var Platform=require('Platform');
-var DialogModuleAndroid=require('NativeModules').DialogManagerAndroid;var 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Alert=function(){function Alert(){babelHelpers.classCallCheck(this,Alert);}babelHelpers.createClass(Alert,null,[{key:'alert',value:function alert(
-
-
-title,
-message,
-buttons,
-type)
-{
-if(Platform.OS==='ios'){
-AlertIOS.alert(title,message,buttons,type);}else 
-if(Platform.OS==='android'){
-AlertAndroid.alert(title,message,buttons);}}}]);return Alert;}();var 
-
-
-
-
-
-
-
-AlertAndroid=function(){function AlertAndroid(){babelHelpers.classCallCheck(this,AlertAndroid);}babelHelpers.createClass(AlertAndroid,null,[{key:'alert',value:function alert(
-
-
-title,
-message,
-buttons)
-{
-var config={
-title:title||'',
-message:message||''};
-
-
-
-var validButtons=buttons?buttons.slice(0,3):[{text:'OK'}];
-var buttonPositive=validButtons.pop();
-var buttonNegative=validButtons.pop();
-var buttonNeutral=validButtons.pop();
-if(buttonNeutral){
-config=babelHelpers.extends({},config,{buttonNeutral:buttonNeutral.text||''});}
-
-if(buttonNegative){
-config=babelHelpers.extends({},config,{buttonNegative:buttonNegative.text||''});}
-
-if(buttonPositive){
-config=babelHelpers.extends({},config,{buttonPositive:buttonPositive.text||''});}
-
-DialogModuleAndroid.showAlert(
-config,
-function(errorMessage){return console.warn(message);},
-function(action,buttonKey){
-if(action!==DialogModuleAndroid.buttonClicked){
-return;}
-
-if(buttonKey===DialogModuleAndroid.buttonNeutral){
-buttonNeutral.onPress&&buttonNeutral.onPress();}else 
-if(buttonKey===DialogModuleAndroid.buttonNegative){
-buttonNegative.onPress&&buttonNegative.onPress();}else 
-if(buttonKey===DialogModuleAndroid.buttonPositive){
-buttonPositive.onPress&&buttonPositive.onPress();}});}}]);return AlertAndroid;}();
-
-
-
-
-
-
-module.exports=Alert;
-});
-__d('AlertIOS',function(global, require, module, exports) {  'use strict';
-
-
-
-
-
-
-
-
-
-
-
-
-var RCTAlertManager=require('NativeModules').AlertManager;
-var invariant=require('invariant');var 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-AlertIOS=function(){function AlertIOS(){babelHelpers.classCallCheck(this,AlertIOS);}babelHelpers.createClass(AlertIOS,null,[{key:'alert',value:function alert(
-
-title,
-message,
-buttons,
-
-
-
-
-type)
-{
-var callbacks=[];
-var buttonsSpec=[];
-var cancelButtonKey;
-var destructiveButtonKey;
-buttons&&buttons.forEach(function(btn,index){
-callbacks[index]=btn.onPress;
-if(btn.style=='cancel'){
-cancelButtonKey=String(index);}else 
-if(btn.style=='destructive'){
-destructiveButtonKey=String(index);}
-
-if(btn.text||index<(buttons||[]).length-1){
-var btnDef={};
-btnDef[index]=btn.text||'';
-buttonsSpec.push(btnDef);}});
-
-
-RCTAlertManager.alertWithArgs({
-title:title||undefined,
-message:message||undefined,
-buttons:buttonsSpec,
-type:type||undefined,
-cancelButtonKey:cancelButtonKey,
-destructiveButtonKey:destructiveButtonKey},
-function(id,value){
-var cb=callbacks[id];
-cb&&cb(value);});}},{key:'prompt',value:function prompt(
-
-
-
-
-
-
-
-title,
-value,
-buttons,
-
-
-
-
-callback)
-{
-if(arguments.length===2){
-if(typeof value==='object'){
-buttons=value;
-value=undefined;}else 
-if(typeof value==='function'){
-callback=value;
-value=undefined;}}else 
-
-if(arguments.length===3&&typeof buttons==='function'){
-callback=buttons;
-buttons=undefined;}
-
-
-invariant(
-!(callback&&buttons)&&(callback||buttons),
-'Must provide either a button list or a callback, but not both');
-
-
-if(!buttons){
-buttons=[{onPress:callback}];}
-
-this.alert(title,value,buttons,'plain-text');}}]);return AlertIOS;}();
-
-
-
-module.exports=AlertIOS;
 });
 __d('AppRegistry',function(global, require, module, exports) {  'use strict';
 
@@ -55103,6 +55741,154 @@ return isTagValidWithParent(tag,parentTag)&&!findInvalidAncestorForTag(tag,ances
 
 module.exports=validateDOMNesting;
 });
+__d('AppState',function(global, require, module, exports) {  'use strict';
+
+
+
+
+
+
+
+
+
+
+
+
+var Map=require('Map');
+var NativeModules=require('NativeModules');
+var RCTDeviceEventEmitter=require('RCTDeviceEventEmitter');
+var RCTAppState=NativeModules.AppState;
+
+var logError=require('logError');
+var invariant=require('invariant');
+
+var _eventHandlers={
+change:new Map(),
+memoryWarning:new Map()};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var AppState={
+
+
+
+
+
+addEventListener:function(
+type,
+handler)
+{
+invariant(
+['change','memoryWarning'].indexOf(type)!==-1,
+'Trying to subscribe to unknown event: "%s"',type);
+
+if(type==='change'){
+_eventHandlers[type].set(handler,RCTDeviceEventEmitter.addListener(
+'appStateDidChange',
+function(appStateData){
+handler(appStateData.app_state);}));}else 
+
+
+if(type==='memoryWarning'){
+_eventHandlers[type].set(handler,RCTDeviceEventEmitter.addListener(
+'memoryWarning',
+handler));}},
+
+
+
+
+
+
+
+removeEventListener:function(
+type,
+handler)
+{
+invariant(
+['change','memoryWarning'].indexOf(type)!==-1,
+'Trying to remove listener for unknown event: "%s"',type);
+
+if(!_eventHandlers[type].has(handler)){
+return;}
+
+_eventHandlers[type].get(handler).remove();
+_eventHandlers[type].delete(handler);},
+
+
+
+
+
+
+currentState:'active'};
+
+
+
+RCTDeviceEventEmitter.addListener(
+'appStateDidChange',
+function(appStateData){
+AppState.currentState=appStateData.app_state;});
+
+
+
+RCTAppState.getCurrentAppState(
+function(appStateData){
+AppState.currentState=appStateData.app_state;},
+
+logError);
+
+
+module.exports=AppState;
+});
 __d('AppStateIOS',function(global, require, module, exports) {  'use strict';
 
 
@@ -56464,7 +57250,14 @@ var NOTIF_REGISTER_EVENT='remoteNotificationsRegistered';var
 
 
 
+
+
+
+
+
+
 PushNotificationIOS=function(){babelHelpers.createClass(PushNotificationIOS,null,[{key:'presentLocalNotification',value:function presentLocalNotification(
+
 
 
 
@@ -56480,6 +57273,7 @@ PushNotificationIOS=function(){babelHelpers.createClass(PushNotificationIOS,null
 
 details){
 RCTPushNotificationManager.presentLocalNotification(details);}},{key:'scheduleLocalNotification',value:function scheduleLocalNotification(
+
 
 
 
@@ -57240,7 +58034,7 @@ __d('ReactVersion',function(global, require, module, exports) {  'use strict';
 
 
 
-module.exports='0.14.6';
+module.exports='0.14.7';
 });
 __d('ReactStateSetters',function(global, require, module, exports) {  'use strict';
 
@@ -58189,9 +58983,13 @@ ReactShallowRenderer.prototype.render=function(element,context){
 if(!context){
 context=emptyObject;}
 
+ReactUpdates.batchedUpdates(_batchedRender,this,element,context);};
+
+
+function _batchedRender(renderer,element,context){
 var transaction=ReactUpdates.ReactReconcileTransaction.getPooled(false);
-this._render(element,transaction,context);
-ReactUpdates.ReactReconcileTransaction.release(transaction);};
+renderer._render(element,transaction,context);
+ReactUpdates.ReactReconcileTransaction.release(transaction);}
 
 
 ReactShallowRenderer.prototype.unmount=function(){
